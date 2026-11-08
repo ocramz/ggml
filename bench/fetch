@@ -1,0 +1,35 @@
+#!/bin/sh
+# fetch (autoresearch, plan 15b): what the build and the runs need, as the job image is built: the
+# only step with network access, run once, as root in /work (design §9.2 of pi-autoresearch-serverless).
+# - CMake and Ninja, from Debian.
+# - GPT-2 117M in ggml's format, pinned by its Hugging Face commit and checked against its SHA-256,
+#   in /opt/models: outside /work, root's, and readable by every uid.
+# - build/, configured once. Static, so that the baseline in /opt/baseline loads none of the
+#   candidate's code from /work; and for a fixed instruction set, never the builder's own
+#   (GGML_NATIVE), since the image builds the baseline on another machine than the tasks build
+#   candidates on (design §9.1). No OpenMP: ggml's own threadpool, which agents may change, does the
+#   threading. The CMake files are locked, so no task's build configures again.
+set -eu
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y --no-install-recommends cmake ninja-build
+rm -rf /var/lib/apt/lists/*
+
+model=/opt/models/ggml-model-gpt-2-117M.bin
+mkdir -p /opt/models
+curl -fsSL --retry 3 -o "$model.part" \
+  https://huggingface.co/ggerganov/ggml/resolve/c464b610b76a202eabab98f8aded1dbf36bad694/ggml-model-gpt-2-117M.bin
+echo "b457d5fcc7f2f71e727bee74298d42d80610619e02af16beca53d44a71d5f607  $model.part" | sha256sum -c -
+mv "$model.part" "$model"
+chmod 0755 /opt/models
+chmod 0644 "$model"
+
+case "$(uname -m)" in
+x86_64) isa="-DGGML_SSE42=ON -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_BMI2=ON -DGGML_FMA=ON -DGGML_F16C=ON" ;;
+aarch64) isa="-DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16" ;;
+*) echo "fetch: no instruction set is chosen for $(uname -m)" >&2; exit 1 ;;
+esac
+# $isa is several words.
+# shellcheck disable=SC2086
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF $isa \
+  -DGGML_BACKEND_DL=OFF -DGGML_OPENMP=OFF -DGGML_CCACHE=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=ON

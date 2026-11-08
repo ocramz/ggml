@@ -18,17 +18,8 @@ add_library(common-ggml STATIC common-ggml.cpp)
 target_link_libraries(common-ggml PRIVATE ggml)
 target_include_directories(common-ggml PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(yolo)
-
+# autoresearch (plan 15b): gpt-2 alone, since .gitattributes leaves the other examples out of the
+# search's tree.
 if (NOT GGML_BACKEND_DL)
     add_subdirectory(gpt-2)
-    add_subdirectory(gpt-j)
-    add_subdirectory(mnist)
-    add_subdirectory(sam)
-    add_subdirectory(simple)
-    add_subdirectory(magika)
-endif()
-
-if (GGML_METAL)
-    add_subdirectory(perf-metal)
 endif()

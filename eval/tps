@@ -1,0 +1,7 @@
+#!/bin/sh
+# tps OUTPUTS WALL_MS (autoresearch, plan 15b): one side's tokens per second in one round: the tokens
+# it generated, its tokens.txt's lines, over the round's wall time, which sbx measured. The gate has
+# checked a candidate's tokens before this runs.
+set -eu
+tokens=$(wc -l < "$1/tokens.txt")
+awk -v tokens="$tokens" -v ms="$2" 'BEGIN { if (ms <= 0) exit 1; printf "%.6f\n", tokens * 1000 / ms }'

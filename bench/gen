@@ -1,0 +1,14 @@
+#!/bin/sh
+# gen SEED INPUTS (autoresearch, plan 15b): the prompt every round of an attempt continues, drawn
+# from SEED: 48 words of bench/words.txt (Webster's Second, from /usr/share/dict/web2, in the public
+# domain), on one line of INPUTS/prompt.txt, which gpt-2-backend reads with -f. It runs from the
+# locked tree, with no network (design §8.2).
+set -eu
+awk -v seed="$1" -v count=48 '
+  { words[NR] = $0 }
+  END {
+    srand(seed % 1000003)
+    line = ""
+    for (i = 0; i < count; i++) line = line (i == 0 ? "" : " ") words[int(rand() * NR) + 1]
+    print line
+  }' bench/words.txt > "$2/prompt.txt"

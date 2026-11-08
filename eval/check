@@ -1,0 +1,29 @@
+#!/bin/sh
+# check INPUTS BASELINE_BUILD BASELINE_OUT CANDIDATE_OUT (autoresearch, plan 15b): passes when every
+# measured round's tokens are the root model's greedy choices, each within DELTA of the best score.
+# A candidate's round whose tokens are the baseline's in the same round passes at once: those are
+# the root's own choices. Any other is replayed by gpt-2-verify from the baseline's build, the root's,
+# never the candidate's; it says why on stderr, which goes to the owner's check.log alone.
+set -eu
+inputs=$1 baseline=$2 baseline_out=$3 candidate_out=$4
+# [paired] rounds.
+rounds=5
+# How far below the best score a token may be, in logits over the temperature: a reordered f16 dot
+# product's largest gap was 0.0013, and a skipped layer's 49.
+delta=0.01
+n=0
+for dir in "$candidate_out"/*; do
+  round=$(basename "$dir")
+  n=$((n + 1))
+  if cmp -s "$baseline_out/$round/tokens.txt" "$dir/tokens.txt"; then
+    echo "check: round $round, the root's tokens" >&2
+    continue
+  fi
+  echo "check: round $round, verified" >&2
+  "$baseline/build/bin/gpt-2-verify" -m /opt/models/ggml-model-gpt-2-117M.bin -f "$inputs/prompt.txt" \
+    --tokens "$dir/tokens.txt" -n 512 -t 4 --repeat-penalty 1.3 --repeat-last-n 256 --delta "$delta"
+done
+if [ "$n" -ne "$rounds" ]; then
+  echo "check: $n rounds, not $rounds" >&2
+  exit 1
+fi

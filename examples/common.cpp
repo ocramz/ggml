@@ -76,6 +76,8 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
             }
         } else if (arg == "-tt" || arg == "--token_test") {
             params.token_test = get_next_arg(i, argc, argv, arg, params);
+        } else if (arg == "--tokens-out") {
+            params.tokens_out = get_next_arg(i, argc, argv, arg, params);
         }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -100,6 +102,7 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     fprintf(stderr, "                        load prompt from a file\n");
     fprintf(stderr, "  -tt TOKEN_TEST, --token_test TOKEN_TEST\n");
     fprintf(stderr, "                        test tokenization\n");
+    fprintf(stderr, "  --tokens-out FNAME    write the generated tokens' ids to a file, one per line\n");
     fprintf(stderr, "  -n N, --n_predict N   number of tokens to predict (default: %d)\n", params.n_predict);
     fprintf(stderr, "  --top_k N             top-k sampling (default: %d)\n", params.top_k);
     fprintf(stderr, "  --top_p N             top-p sampling (default: %.1f)\n", params.top_p);

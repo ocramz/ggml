@@ -14,6 +14,7 @@
 #include "common.h"
 #include "common-ggml.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -783,6 +784,43 @@ bool gpt2_eval(
     return true;
 }
 
+// Each token's score as gpt-2-backend's greedy choice ranks them under --top_k 1: its logit over
+// the temperature, lowered by the repetition penalty when it is among the context's last
+// repeat_last_n tokens, as gpt_sample_top_k_top_p_repeat (common.cpp) scores them. verify.cpp has
+// the same function, frozen, which autoresearch's gate runs on a candidate's tokens.
+static void greedy_scores(const float * logits, int n_vocab, float temp, float repeat_penalty, int repeat_last_n,
+                          const std::vector<gpt_vocab::id> & context, std::vector<double> & scores) {
+    const double t = temp;
+    if (repeat_penalty == 1.0f) {
+        const double scale = 1.0/t;
+        for (int i = 0; i < n_vocab; i++) {
+            scores[i] = logits[i]*scale;
+        }
+        return;
+    }
+    const float scale = 1.0f/t;
+    const size_t window = std::min<size_t>(std::max(0, repeat_last_n), context.size());
+    std::vector<bool> recent(n_vocab, false);
+    for (size_t i = context.size() - window; i < context.size(); i++) {
+        recent[context[i]] = true;
+    }
+    for (int i = 0; i < n_vocab; i++) {
+        if (recent[i]) {
+            scores[i] = logits[i] < 0.0f ? logits[i]*scale*repeat_penalty : logits[i]*scale/repeat_penalty;
+        } else {
+            scores[i] = logits[i]*scale;
+        }
+    }
+}
+
+// The greedy choice, under --top_k 1: the token of the largest score, the first of them on a tie.
+static gpt_vocab::id greedy_choice(const float * logits, int n_vocab, float temp, float repeat_penalty, int repeat_last_n,
+                                   const std::vector<gpt_vocab::id> & context) {
+    std::vector<double> scores(n_vocab);
+    greedy_scores(logits, n_vocab, temp, repeat_penalty, repeat_last_n, context, scores);
+    return (gpt_vocab::id) (std::max_element(scores.begin(), scores.end()) - scores.begin());
+}
+
 int main(int argc, char ** argv) {
     ggml_time_init();
 
@@ -865,6 +903,11 @@ int main(int argc, char ** argv) {
     // this reduces the memory usage during inference, at the cost of a bit of speed at the beginning
     std::vector<gpt_vocab::id> embd;
 
+    // the generated tokens, for --tokens-out
+    std::vector<gpt_vocab::id> generated;
+    // the prompt and the generated tokens, whose last repeat_last_n a repetition penalty reads
+    std::vector<gpt_vocab::id> context = embd_inp;
+
     for (size_t i = embd.size(); i < embd_inp.size() + params.n_predict; i++) {
         // predict
         if (embd.size() > 0) {
@@ -894,13 +937,19 @@ int main(int argc, char ** argv) {
             {
                 const int64_t t_start_sample_us = ggml_time_us();
 
-                id = gpt_sample_top_k_top_p(vocab, logits.data() + (logits.size() - n_vocab), top_k, top_p, temp, rng);
+                if (top_k == 1) {
+                    id = greedy_choice(logits.data() + (logits.size() - n_vocab), n_vocab, temp, params.repeat_penalty, params.repeat_last_n, context);
+                } else {
+                    id = gpt_sample_top_k_top_p(vocab, logits.data() + (logits.size() - n_vocab), top_k, top_p, temp, rng);
+                }
 
                 t_sample_us += ggml_time_us() - t_start_sample_us;
             }
 
             // add it to the context
             embd.push_back(id);
+            generated.push_back(id);
+            context.push_back(id);
         } else {
             // if here, it means we are still processing the input prompt
             for (size_t k = i; k < embd_inp.size(); k++) {
@@ -933,6 +982,21 @@ int main(int argc, char ** argv) {
         printf("%s:   sample time = %8.2f ms\n", __func__, t_sample_us/1000.0f);
         printf("%s:  predict time = %8.2f ms / %.2f ms per token\n", __func__, t_predict_us/1000.0f, t_predict_us/1000.0f/n_past);
         printf("%s:    total time = %8.2f ms\n", __func__, (t_main_end_us - t_main_start_us)/1000.0f);
+    }
+
+    if (!params.tokens_out.empty()) {
+        FILE * out = fopen(params.tokens_out.c_str(), "w");
+        if (out == NULL) {
+            fprintf(stderr, "%s: failed to open '%s'\n", __func__, params.tokens_out.c_str());
+            return 1;
+        }
+        for (const auto id : generated) {
+            fprintf(out, "%d\n", id);
+        }
+        if (fclose(out) != 0) {
+            fprintf(stderr, "%s: failed to write '%s'\n", __func__, params.tokens_out.c_str());
+            return 1;
+        }
     }
 
     ggml_free(model.ctx_w);

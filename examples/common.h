@@ -36,6 +36,7 @@ struct gpt_params {
     std::string model      = "models/gpt-2-117M/ggml-model.bin"; // model path
     std::string prompt     = "";
     std::string token_test = "";
+    std::string tokens_out = ""; // where to write the generated tokens' ids, one per line
 
     bool    interactive      = false;
     int32_t interactive_port = -1;

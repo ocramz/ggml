@@ -1,0 +1,47 @@
+# What autoresearch's search leaves out of its tree, and so of agents' trees and the job image
+# (plan 15b of pi-autoresearch-serverless): the backends but the CPU's, the CPU backend's code for
+# architectures other than x86 and Arm, the examples but gpt-2, and what no build reads. git archive
+# leaves them out too.
+/src/ggml-blas export-ignore
+/src/ggml-cann export-ignore
+/src/ggml-cuda export-ignore
+/src/ggml-et export-ignore
+/src/ggml-hexagon export-ignore
+/src/ggml-hip export-ignore
+/src/ggml-metal export-ignore
+/src/ggml-musa export-ignore
+/src/ggml-opencl export-ignore
+/src/ggml-openvino export-ignore
+/src/ggml-rpc export-ignore
+/src/ggml-sycl export-ignore
+/src/ggml-virtgpu export-ignore
+/src/ggml-vulkan export-ignore
+/src/ggml-webgpu export-ignore
+/src/ggml-zdnn export-ignore
+/src/ggml-zendnn export-ignore
+/src/ggml-cpu/arch/loongarch export-ignore
+/src/ggml-cpu/arch/powerpc export-ignore
+/src/ggml-cpu/arch/riscv export-ignore
+/src/ggml-cpu/arch/s390 export-ignore
+/src/ggml-cpu/arch/wasm export-ignore
+/src/ggml-cpu/kleidiai export-ignore
+/src/ggml-cpu/spacemit export-ignore
+/examples/gpt-j export-ignore
+/examples/magika export-ignore
+/examples/mnist export-ignore
+/examples/perf-metal export-ignore
+/examples/prompts export-ignore
+/examples/python export-ignore
+/examples/sam export-ignore
+/examples/simple export-ignore
+/examples/test-cmake export-ignore
+/examples/yolo export-ignore
+/examples/stb_image.h export-ignore
+/examples/stb_image_write.h export-ignore
+/ci export-ignore
+/docs export-ignore
+/scripts export-ignore
+/tests export-ignore
+/requirements.txt export-ignore
+/.github export-ignore
+/.pi export-ignore

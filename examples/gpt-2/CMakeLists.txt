@@ -30,3 +30,10 @@ target_link_libraries(${TEST_TARGET} PRIVATE ggml common common-ggml)
 set(TEST_TARGET gpt-2-batched)
 add_executable(${TEST_TARGET} main-batched.cpp)
 target_link_libraries(${TEST_TARGET} PRIVATE ggml common common-ggml)
+
+#
+# gpt-2-verify: autoresearch's gate, the root's model replayed on a candidate's tokens
+
+set(TEST_TARGET gpt-2-verify)
+add_executable(${TEST_TARGET} verify.cpp)
+target_link_libraries(${TEST_TARGET} PRIVATE ggml common common-ggml)

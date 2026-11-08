@@ -5,6 +5,10 @@
 # The gate, eval/check, replays the root's own model, from the baseline's build, on the candidate's
 # tokens: each must be the root's greedy choice, but where two tokens nearly tie.
 
+
+[agents]
+max_tokens = 3000000
+
 [metric]
 name = "tokens_per_s"
 direction = "maximize"
